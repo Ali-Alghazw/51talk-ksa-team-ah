@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team Performance Dashboard — Referral Funnel Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #09090f;
+    --surface: #111118;
+    --surface2: #16161f;
+    --border: #1e1e2e;
+    --border2: #2a2a3e;
+    --text: #e8e8f0;
+    --muted: #6b6b88;
+    --accent: #7c6af0;
+    --accent2: #c084fc;
+    --green: #22d3a5;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --blue: #60a5fa;
+    --cyan: #22d3ee;
+    --top: #22d3a5;
+    --mid: #fbbf24;
+    --low: #f87171;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* BG texture */
+  body::before {
+    content:'';
+    position:fixed;
+    inset:0;
+    background: 
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(124,106,240,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(192,132,252,0.05) 0%, transparent 60%);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 0 24px; position:relative; z-index:1; }
+
+  /* ── HEADER ── */
+  header {
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+  }
+  .header-tag {
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color: var(--accent); margin-bottom:12px;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 52px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+  header h1 span { color: var(--accent2); font-style: italic; font-family:'Instrument Serif'; }
+  .header-meta {
+    display:flex; gap:32px; margin-top:20px; flex-wrap:wrap;
+  }
+  .meta-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size:11px;
+    color: var(--muted);
+  }
+  .meta-pill strong { color: var(--text); }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top:0; z-index:100;
+    background: rgba(9,9,15,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0;
+  }
+  nav ul {
+    display:flex; list-style:none; gap:0; overflow-x:auto;
+    scrollbar-width:none;
+  }
+  nav ul li a {
+    display:block; padding:14px 20px;
+    color:var(--muted); text-decoration:none;
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    transition: color .2s, border-color .2s;
+    border-bottom: 2px solid transparent;
+    white-space:nowrap;
+  }
+  nav ul li a:hover, nav ul li a.active {
+    color: var(--accent2);
+    border-bottom-color: var(--accent2);
+  }
+
+  /* ── SECTION ── */
+  section { padding: 56px 0 32px; border-bottom: 1px solid var(--border); }
+  .section-label {
+    font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+    color: var(--accent); margin-bottom:8px;
+  }
+  .section-title {
+    font-family:'Syne',sans-serif; font-size: clamp(18px,2.5vw,28px);
+    font-weight:700; margin-bottom:24px; letter-spacing:-.5px;
+  }
+
+  /* ── KPI GRID ── */
+  .kpi-grid {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px;
+    margin-bottom:32px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 18px 16px;
+    position:relative; overflow:hidden;
+    transition: transform .2s, border-color .2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .kpi-card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: var(--accent-line, var(--accent));
+  }
+  .kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:.1em; color:var(--muted); margin-bottom:6px; }
+  .kpi-val { font-family:'Syne',sans-serif; font-size:28px; font-weight:800; line-height:1; }
+  .kpi-sub { font-size:10px; color:var(--muted); margin-top:4px; }
+
+  /* ── TABLE ── */
+  .table-wrap { overflow-x:auto; border-radius:10px; border: 1px solid var(--border2); }
+  table { width:100%; border-collapse:collapse; }
+  thead tr { background: var(--surface2); }
+  thead th {
+    padding: 12px 14px;
+    text-align:left;
+    font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); font-weight:500;
+    white-space:nowrap;
+    cursor:pointer;
+    border-bottom: 1px solid var(--border2);
+    user-select:none;
+  }
+  thead th:hover { color: var(--accent2); }
+  thead th .sort-arrow { margin-left:4px; opacity:.4; }
+  thead th.sort-asc .sort-arrow::after { content:'↑'; opacity:1; color:var(--accent2); }
+  thead th.sort-desc .sort-arrow::after { content:'↓'; opacity:1; color:var(--accent2); }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background .15s;
+  }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 10px 14px; font-size:12px; white-space:nowrap; }
+  td.team-name { font-weight:500; color:var(--text); }
+  td.mono { font-family:'DM Mono',monospace; }
+
+  /* status badges */
+  .badge {
+    display:inline-flex; align-items:center; gap:4px;
+    padding: 2px 8px; border-radius:4px; font-size:10px;
+    font-weight:500; letter-spacing:.05em;
+  }
+  .badge-top { background: rgba(34,211,165,.12); color: var(--green); border:1px solid rgba(34,211,165,.2); }
+  .badge-mid { background: rgba(251,191,36,.1); color: var(--amber); border:1px solid rgba(251,191,36,.2); }
+  .badge-low { background: rgba(248,113,113,.1); color: var(--red); border:1px solid rgba(248,113,113,.2); }
+  .badge-fake { background: rgba(248,113,113,.15); color: #ff6b6b; border:1px solid rgba(248,113,113,.3); }
+  .badge-star { background: rgba(124,106,240,.15); color: var(--accent2); border:1px solid rgba(124,106,240,.3); }
+
+  /* bar cells */
+  .bar-cell { display:flex; align-items:center; gap:8px; }
+  .bar-bg { flex:1; height:5px; background:var(--border2); border-radius:3px; min-width:50px; }
+  .bar-fill { height:100%; border-radius:3px; transition: width .4s; }
+  .bar-val { font-size:11px; min-width:36px; text-align:right; }
+
+  /* ── CARDS GRID ── */
+  .cards-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(320px,1fr)); gap:16px; }
+  .insight-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 20px;
+    position:relative; overflow:hidden;
+  }
+  .insight-card.card-green { border-left: 3px solid var(--green); }
+  .insight-card.card-red { border-left: 3px solid var(--red); }
+  .insight-card.card-amber { border-left: 3px solid var(--amber); }
+  .insight-card.card-blue { border-left: 3px solid var(--blue); }
+  .insight-card.card-purple { border-left: 3px solid var(--accent2); }
+  .card-icon { font-size:22px; margin-bottom:8px; }
+  .card-title { font-family:'Syne',sans-serif; font-size:14px; font-weight:700; margin-bottom:8px; }
+  .card-body { font-size:12px; color:var(--muted); line-height:1.7; }
+  .card-body strong { color:var(--text); }
+  .card-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+
+  /* ── SM / SD BLOCKS ── */
+  .manager-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr)); gap:16px; }
+  .manager-card {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .manager-name {
+    font-family:'Syne',sans-serif; font-size:16px; font-weight:700;
+    margin-bottom:4px;
+  }
+  .manager-role { font-size:10px; color:var(--muted); letter-spacing:.1em; text-transform:uppercase; margin-bottom:14px; }
+  .manager-stat { display:flex; justify-content:space-between; margin-bottom:8px; font-size:12px; }
+  .manager-stat span:first-child { color:var(--muted); }
+  .manager-stat span:last-child { color:var(--text); font-weight:500; }
+  .manager-divider { height:1px; background:var(--border); margin:12px 0; }
+  .action-list { list-style:none; }
+  .action-list li {
+    padding: 6px 0;
+    font-size:12px; color:var(--muted);
+    border-bottom: 1px solid var(--border);
+    display:flex; gap:8px;
+  }
+  .action-list li::before { content:'→'; color:var(--accent); flex-shrink:0; }
+  .action-list li:last-child { border-bottom:none; }
+
+  /* ── CONCLUSION BOX ── */
+  .conclusion-box {
+    background: linear-gradient(135deg, rgba(124,106,240,.08), rgba(192,132,252,.04));
+    border: 1px solid rgba(124,106,240,.25);
+    border-radius: 12px;
+    padding: 32px;
+    margin-top:8px;
+  }
+  .conclusion-box h3 {
+    font-family:'Syne',sans-serif; font-size:18px; font-weight:700;
+    color:var(--accent2); margin-bottom:16px;
+  }
+  .conclusion-box p { color:var(--muted); line-height:1.8; margin-bottom:12px; font-size:13px; }
+  .conclusion-box p strong { color:var(--text); }
+  .conclusion-box p:last-child { margin-bottom:0; }
+
+  /* ── FILTER TOOLBAR ── */
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+  .toolbar label { font-size:11px; color:var(--muted); margin-right:2px; }
+  .toolbar select, .toolbar input {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius:6px;
+    color: var(--text);
+    padding: 6px 10px;
+    font-size:12px;
+    font-family:'DM Mono',monospace;
+    outline:none;
+  }
+  .toolbar select:focus, .toolbar input:focus { border-color: var(--accent); }
+  .btn {
+    padding: 6px 14px; border-radius:6px;
+    background: var(--surface2); border: 1px solid var(--border2);
+    color:var(--text); font-size:11px; cursor:pointer;
+    transition: background .2s, border-color .2s;
+    font-family:'DM Mono',monospace;
+    letter-spacing:.03em;
+  }
+  .btn:hover { background:var(--border2); border-color: var(--accent); }
+  .btn.active { background: rgba(124,106,240,.15); border-color:var(--accent); color:var(--accent2); }
+
+  /* ── COMPARISON CHART ── */
+  .chart-area { margin-top:8px; }
+  .chart-row {
+    display:flex; align-items:center; gap:10px; margin-bottom:6px;
+    padding: 8px 12px; border-radius:6px; background:var(--surface);
+    border: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .chart-row:hover { background: var(--surface2); }
+  .chart-row-label { width:150px; font-size:11px; flex-shrink:0; overflow:hidden; text-overflow:ellipsis; }
+  .chart-bar-wrap { flex:1; height:18px; background:var(--border2); border-radius:4px; overflow:hidden; }
+  .chart-bar { height:100%; border-radius:4px; display:flex; align-items:center; padding-left:6px;
+    font-size:10px; font-weight:600; min-width:30px; }
+  .chart-num { width:50px; text-align:right; font-size:11px; color:var(--muted); }
+
+  /* ── TABS ── */
+  .tab-bar { display:flex; gap:0; border-bottom:1px solid var(--border2); margin-bottom:20px; }
+  .tab-btn {
+    padding:10px 18px; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    cursor:pointer; border:none; background:none; color:var(--muted);
+    border-bottom: 2px solid transparent; transition: color .2s, border-color .2s;
+    font-family:'DM Mono',monospace;
+  }
+  .tab-btn:hover { color:var(--text); }
+  .tab-btn.active { color:var(--accent2); border-bottom-color:var(--accent2); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── SCROLL FADE IN ── */
+  .fade-in { opacity:0; transform:translateY(16px); transition: opacity .5s, transform .5s; }
+  .fade-in.visible { opacity:1; transform:translateY(0); }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:768px) {
+    .kpi-grid { grid-template-columns: repeat(2,1fr); }
+    header h1 { font-size:24px; }
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--border2); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--muted); }
+
+  .highlight-row td { background: rgba(124,106,240,.06); }
+
+  .funnel-mini {
+    display:flex; align-items:center; gap:3px; font-size:10px;
+  }
+  .funnel-step {
+    padding: 2px 6px; border-radius:3px; font-size:10px;
+  }
+  .funnel-arrow { color:var(--muted); font-size:8px; }
+
+  .trend-up { color: var(--green); }
+  .trend-down { color: var(--red); }
+  .trend-mid { color: var(--amber); }
+
+  .exec-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:16px; margin-bottom:32px; }
+  .exec-box {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius:10px; padding:20px;
+    border-top: 3px solid var(--box-color, var(--accent));
+  }
+  .exec-box h4 { font-family:'Syne',sans-serif; font-size:13px; font-weight:700; margin-bottom:10px; color:var(--box-color,var(--accent2)); }
+  .exec-box ul { list-style:none; }
+  .exec-box ul li { font-size:12px; color:var(--muted); padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:6px; }
+  .exec-box ul li::before { content:'◆'; color:var(--box-color,var(--accent)); font-size:8px; flex-shrink:0; margin-top:3px; }
+  .exec-box ul li:last-child { border:none; }
+  .exec-box ul li strong { color:var(--text); }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="header-tag">Referral Funnel · Performance Intelligence Report</div>
+    <h1>Team <span>Performance</span><br>Dashboard</h1>
+    <div class="header-meta">
+      <div class="meta-pill"><strong>41</strong> Teams Analyzed</div>
+      <div class="meta-pill"><strong>7,025</strong> Total Leads</div>
+      <div class="meta-pill">SDs: <strong>John · Niki</strong></div>
+      <div class="meta-pill">SMs: <strong>8</strong> Managers</div>
+      <div class="meta-pill">Avg Conv. <strong>~12%</strong></div>
+    </div>
+  </header>
+
+</div>
+
+<nav>
+  <div class="container">
+    <ul>
+      <li><a href="#exec" class="active">Executive Summary</a></li>
+      <li><a href="#table">Performance Table</a></li>
+      <li><a href="#swot">Strength / Issues</a></li>
+      <li><a href="#management">Management View</a></li>
+      <li><a href="#insights">Insight Cards</a></li>
+      <li><a href="#comparison">Comparison</a></li>
+      <li><a href="#conclusion">Conclusion</a></li>
+    </ul>
+  </div>
+</nav>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════════ 1. EXEC SUMMARY -->
+<section id="exec" class="fade-in">
+  <div class="section-label">01 — Executive Summary</div>
+  <div class="section-title">What the Numbers Say</div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card" style="--accent-line:#22d3a5">
+      <div class="kpi-label">Total Leads</div>
+      <div class="kpi-val trend-up">7,025</div>
+      <div class="kpi-sub">Across 41 teams</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#60a5fa">
+      <div class="kpi-label">Total Applications</div>
+      <div class="kpi-val">3,481</div>
+      <div class="kpi-sub">Avg App% = 49.6%</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#c084fc">
+      <div class="kpi-label">Total Show-Ups</div>
+      <div class="kpi-val">2,618</div>
+      <div class="kpi-sub">Avg Show-Up% = 74.9%</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#fbbf24">
+      <div class="kpi-label">Total Paids</div>
+      <div class="kpi-val trend-up">857</div>
+      <div class="kpi-sub">Avg Leads→Pay = 12.2%</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#f87171">
+      <div class="kpi-label">Show→Pay Avg</div>
+      <div class="kpi-val trend-down">34%</div>
+      <div class="kpi-sub">Critical closing stage</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#22d3ee">
+      <div class="kpi-label">Top Converter</div>
+      <div class="kpi-val" style="font-size:18px;line-height:1.2">JOCC36</div>
+      <div class="kpi-sub">55% Show→Pay · 24% L→P</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#f87171">
+      <div class="kpi-label">Worst Converter</div>
+      <div class="kpi-val" style="font-size:18px;line-height:1.2">JOCC23</div>
+      <div class="kpi-sub">Only 19% Show→Pay · 6%</div>
+    </div>
+    <div class="kpi-card" style="--accent-line:#fbbf24">
+      <div class="kpi-label">Teams ≥ 15% Conv.</div>
+      <div class="kpi-val">9</div>
+      <div class="kpi-sub">Top performers flagged ★</div>
+    </div>
+  </div>
+
+  <div class="exec-grid">
+    <div class="exec-box" style="--box-color:#22d3a5">
+      <h4>✦ What's Working</h4>
+      <ul>
+        <li><strong>JOCC36 leads</strong> with the highest Show→Pay (55%) and Leads→Pay (24%)</li>
+        <li><strong>JOCC02</strong> outstanding closer: 59% Show→Pay despite average app rate</li>
+        <li><strong>JOCC10</strong> exceptional converter: 67% Show→Pay once people show up</li>
+        <li><strong>JOCC31, JOCC17, JOCC19</strong> all above 15% L→P threshold</li>
+        <li>Show-up rates are generally strong (65–89%) — pipeline integrity is decent</li>
+      </ul>
+    </div>
+    <div class="exec-box" style="--box-color:#f87171">
+      <h4>✦ Critical Issues</h4>
+      <ul>
+        <li><strong>JOCC23:</strong> 163 leads → only 10 paids. Broken closing pipeline</li>
+        <li><strong>JOCC34:</strong> 61% app rate, only 18% Show→Pay — volume masking failure</li>
+        <li><strong>JOCC21/JOCC05:</strong> Fake volume — 328 & 412 leads, sub-10% L→P</li>
+        <li><strong>App% below 40%</strong> in 5 teams: signal of lead quality or follow-up issues</li>
+        <li><strong>Closing stage</strong> (Show→Pay) is the #1 bottleneck across the entire system</li>
+      </ul>
+    </div>
+    <div class="exec-box" style="--box-color:#fbbf24">
+      <h4>✦ Structural Patterns</h4>
+      <ul>
+        <li>High app rate ≠ high conversion — execution in closing is the differentiator</li>
+        <li>Teams with fewer leads often convert better (JOCC36, JOCC10)</li>
+        <li>John SD has the most teams but widest variance in performance</li>
+        <li>Niki SD teams show more consistent mid-tier performance</li>
+        <li>SM accountability varies heavily — Serdah range: 6%–24% L→P</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 2. PERFORMANCE TABLE -->
+<section id="table" class="fade-in">
+  <div class="section-label">02 — Team Performance Table</div>
+  <div class="section-title">Full Funnel Breakdown</div>
+
+  <div class="toolbar">
+    <div>
+      <label>SD:</label>
+      <select id="filterSD" onchange="applyFilters()">
+        <option value="">All</option>
+        <option value="John">John</option>
+        <option value="Niki">Niki</option>
+      </select>
+    </div>
+    <div>
+      <label>SM:</label>
+      <select id="filterSM" onchange="applyFilters()">
+        <option value="">All</option>
+        <option value="Omar">Omar</option>
+        <option value="Bayan">Bayan</option>
+        <option value="Serdah">Serdah</option>
+        <option value="Hamdan">Hamdan</option>
+        <option value="Ibrahim">Ibrahim</option>
+        <option value="Mumen">Mumen</option>
+        <option value="abumahmmod">abumahmmod</option>
+        <option value="51haithatrashide">51haithatrashide</option>
+        <option value="JOCC-AlDarawsheh">JOCC-AlDarawsheh</option>
+        <option value="JOCC-Ruba">JOCC-Ruba</option>
+        <option value="Falasteen">Falasteen</option>
+      </select>
+    </div>
+    <div>
+      <label>Min L→P%:</label>
+      <input type="number" id="filterMinConv" value="0" min="0" max="100" style="width:60px" onchange="applyFilters()">
+    </div>
+    <button class="btn active" onclick="filterFlag('all')">All</button>
+    <button class="btn" onclick="filterFlag('top')">★ Top (≥15%)</button>
+    <button class="btn" onclick="filterFlag('fake')">⚠ Fake Volume</button>
+    <button class="btn" onclick="filterFlag('close')">⚡ Closing Issue</button>
+    <button class="btn" onclick="resetFilters()">Reset</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortTable(0)">Team <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(1)">TL <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(2)">SM <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(3)">SD <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(4)">Leads <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(5)">App <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(6)">App% <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(7)">Show Up <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(8)">Show% <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(9)">Paids <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(10)">Show→Pay <span class="sort-arrow"></span></th>
+          <th onclick="sortTable(11)">L→Pay <span class="sort-arrow"></span></th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 3. SWOT -->
+<section id="swot" class="fade-in">
+  <div class="section-label">03 — Strengths · Weaknesses · Actions</div>
+  <div class="section-title">Team Diagnostics</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="openTab('tab-strength',this)">★ Top Performers</button>
+    <button class="tab-btn" onclick="openTab('tab-fake',this)">⚠ Fake Volume</button>
+    <button class="tab-btn" onclick="openTab('tab-close',this)">⚡ Closing Issues</button>
+    <button class="tab-btn" onclick="openTab('tab-sop',this)">🔧 SOP Issues</button>
+  </div>
+
+  <div id="tab-strength" class="tab-content active">
+    <div class="cards-grid">
+      <div class="insight-card card-green">
+        <div class="card-icon">🏆</div>
+        <div class="card-title">ME-JOCC36 — Gold Standard</div>
+        <div class="card-body">
+          <strong>55% Show→Pay | 24% Leads→Pay.</strong> Best closing rate in the entire system. With only 122 leads, this team converts nearly 1 in 4 leads to a paid customer. Quality-over-quantity mindset working perfectly.
+          <br><br><strong>Action:</strong> Use this TL (JOCC-QAdanAHMAD) as a closing coach. Replicate their closing script across Serdah's other teams.
+        </div>
+        <div class="card-tags"><span class="badge badge-top">★ Top</span><span class="badge badge-star">Closing Master</span></div>
+      </div>
+      <div class="insight-card card-green">
+        <div class="card-icon">🥇</div>
+        <div class="card-title">ME-JOCC02 — Closing Machine</div>
+        <div class="card-body">
+          <strong>59% Show→Pay | 20% L→P.</strong> Highest Show→Pay in the system. 255 leads with 52 paids — extraordinary execution under Bayan SM.
+          <br><br><strong>Action:</strong> JOCC-Ajarmeh's closing techniques must be documented and shared. Potential mentor for John SD teams struggling to close.
+        </div>
+        <div class="card-tags"><span class="badge badge-top">★ Top</span><span class="badge badge-star">Best Closer</span></div>
+      </div>
+      <div class="insight-card card-green">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">ME-JOCC10 — Hidden Gem</div>
+        <div class="card-body">
+          <strong>67% Show→Pay</strong> — the highest conversion ratio once leads show up. Only 35 applications from 129 leads (27% app rate — flagged below) but when they close, they close hard.
+          <br><br><strong>Action:</strong> Fix the application funnel; if app rate reaches 50%, this team could be among the absolute best.
+        </div>
+        <div class="card-tags"><span class="badge badge-top">★ Top Closer</span><span class="badge badge-mid">Fix App%</span></div>
+      </div>
+      <div class="insight-card card-green">
+        <div class="card-icon">✅</div>
+        <div class="card-title">ME-JOCC01 — Consistent Volume Performer</div>
+        <div class="card-body">
+          <strong>44% Show→Pay | 16% L→P.</strong> 247 leads and 40 paids — best absolute volume among solid converters. Hamdan SM delivering consistent quality.
+          <br><br><strong>Action:</strong> Scale leads cautiously. Maintain closing quality while expanding volume.
+        </div>
+        <div class="card-tags"><span class="badge badge-top">★ Top</span></div>
+      </div>
+      <div class="insight-card card-green">
+        <div class="card-icon">✅</div>
+        <div class="card-title">ME-JOCC31 — Rising Star</div>
+        <div class="card-body">
+          <strong>40% Show→Pay | 17% L→P.</strong> Strong performance with 124 leads. Under Mumen SM — showing that this SM can develop talent.
+          <br><br><strong>Action:</strong> Prioritize lead volume growth; conversion quality is already there.
+        </div>
+        <div class="card-tags"><span class="badge badge-top">★ Top</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-fake" class="tab-content">
+    <div class="cards-grid">
+      <div class="insight-card card-red">
+        <div class="card-icon">⚠️</div>
+        <div class="card-title">ME-JOCC05 — Fake Volume Alert #1</div>
+        <div class="card-body">
+          <strong>412 leads → 42 paids = 10% L→P.</strong> Highest lead volume in the entire system — but a bottom-tier converter. The pipeline is inflated with unqualified or unserious leads.
+          <br><br><strong>Action:</strong> Audit lead quality immediately. Omar SM must review 51saad's lead sourcing. Cut low-quality channels. Focus on 200 qualified leads vs 400+ junk.
+        </div>
+        <div class="card-tags"><span class="badge badge-fake">⚠ Fake Volume</span><span class="badge badge-low">Omar / John</span></div>
+      </div>
+      <div class="insight-card card-red">
+        <div class="card-icon">⚠️</div>
+        <div class="card-title">ME-JOCC21 — Fake Volume Alert #2</div>
+        <div class="card-body">
+          <strong>328 leads → 27 paids = 8% L→P.</strong> Among the highest lead counts but one of the lowest converters. Show-Up% is only 66% — leads not showing up is another red flag.
+          <br><br><strong>Action:</strong> JOCC-Altamimi must stop chasing raw numbers. Quality control on lead screening. Omar SM needs to hold this TL accountable for L→P, not just lead count.
+        </div>
+        <div class="card-tags"><span class="badge badge-fake">⚠ Fake Volume</span><span class="badge badge-low">Omar / John</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">⚠️</div>
+        <div class="card-title">ME-JOCC34 — High App, No Close</div>
+        <div class="card-body">
+          <strong>61% App Rate, 18% Show→Pay, 7% L→P.</strong> Great at getting applications but dramatically fails at closing. Applications may be inflated or unqualified.
+          <br><br><strong>Action:</strong> Review application screening quality. The issue is between show-up and payment. 51alfawares needs immediate closing training.
+        </div>
+        <div class="card-tags"><span class="badge badge-fake">Inflated Apps</span><span class="badge badge-low">Serdah / John</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">⚠️</div>
+        <div class="card-title">ME-JOCC08 — Volume with Weak Close</div>
+        <div class="card-body">
+          <strong>281 leads, only 28% Show→Pay = 12% L→P.</strong> High lead volume but significantly below-average Show→Pay. 118 shows, only 33 paids.
+          <br><br><strong>Action:</strong> Hamdan SM must focus 51gogazeh on close rate improvement rather than more leads.
+        </div>
+        <div class="card-tags"><span class="badge badge-fake">Volume Risk</span><span class="badge badge-mid">Hamdan / John</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-close" class="tab-content">
+    <div class="cards-grid">
+      <div class="insight-card card-red">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">ME-JOCC23 — Worst Closer</div>
+        <div class="card-body">
+          <strong>19% Show→Pay | 6% L→P.</strong> 163 leads, 52 show-ups, only 10 paids. Every metric after the show-up collapses. This is a fundamental closing skill failure.
+          <br><br><strong>Action:</strong> Immediate 1-on-1 coaching for JOCC-forsan. Review presentation script, objection handling, and offer clarity. Serdah SM must shadow closing calls.
+        </div>
+        <div class="card-tags"><span class="badge badge-low">⚡ Critical</span><span class="badge badge-low">Serdah / John</span></div>
+      </div>
+      <div class="insight-card card-red">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">ME-JOCC39 — Show-Up Trap</div>
+        <div class="card-body">
+          <strong>75% Show-Up → only 24% Show→Pay.</strong> 83 people show up, only 20 convert. The pitch is not working. People are coming but not convinced.
+          <br><br><strong>Action:</strong> Abumahmmod SM and JOCC-Qais must audit the presentation content, pricing clarity, and closing technique. The traffic is there — the sale isn't.
+        </div>
+        <div class="card-tags"><span class="badge badge-low">⚡ Closing</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">ME-JOCC51 — Decent Funnel, Weak Close</div>
+        <div class="card-body">
+          <strong>79% Show-Up → only 28% Show→Pay = 10% L→P.</strong> One of the better show-up rates but the conversion doesn't follow. Falasteen SM (self-managed) needs external review.
+          <br><br><strong>Action:</strong> Niki SD must directly assess the closing calls. 79% show-up with only 28% close means the pitch or offer is the problem, not the audience.
+        </div>
+        <div class="card-tags"><span class="badge badge-mid">⚡ Closing</span><span class="badge badge-mid">Niki</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">ME-JOCC29 — Volume, Poor Close</div>
+        <div class="card-body">
+          <strong>216 leads → 29% Show→Pay → only 9% L→P.</strong> 78% show-up, only 29% close rate. Mumen SM needs to intervene with this team's closing mechanics.
+          <br><br><strong>Action:</strong> Script review and offer training. 51tumaizeh may be unclear on product value proposition.
+        </div>
+        <div class="card-tags"><span class="badge badge-mid">⚡ Closing</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-sop" class="tab-content">
+    <div class="cards-grid">
+      <div class="insight-card card-amber">
+        <div class="card-icon">🔧</div>
+        <div class="card-title">ME-JOCC10 — App Rate SOP Violation</div>
+        <div class="card-body">
+          <strong>27% App Rate from 129 leads.</strong> Only 35 applications taken — this suggests either the team is not following the application SOP, or screening too early.
+          <br><br><strong>Action:</strong> Hamdan SM must review lead follow-up protocol. Every lead must receive the application. Potential 2x result if fixed.
+        </div>
+        <div class="card-tags"><span class="badge badge-mid">🔧 SOP</span><span class="badge badge-mid">Hamdan / John</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">🔧</div>
+        <div class="card-title">ME-JOCC07 — Low App Rate</div>
+        <div class="card-body">
+          <strong>37% App Rate (64/174).</strong> Despite a decent Show→Pay (44%), the team is leaving leads behind at the application stage. Better app follow-through could yield 20%+ L→P.
+          <br><br><strong>Action:</strong> JOCC-AlDarawsheh SM must enforce the full SOP for application collection on all leads.
+        </div>
+        <div class="card-tags"><span class="badge badge-mid">🔧 SOP</span></div>
+      </div>
+      <div class="insight-card card-amber">
+        <div class="card-icon">🔧</div>
+        <div class="card-title">ME-JOCC46/50 — Dual SOP Issues</div>
+        <div class="card-body">
+          <strong>JOCC46:</strong> 39% App Rate · <strong>JOCC50:</strong> 37% App Rate. Both under 51haithatrashide SM. A pattern here suggests the SM is not enforcing application processes.
+          <br><br><strong>Action:</strong> 51haithatrashide needs direct coaching on SOP enforcement. Niki SD must audit this SM's team management practices.
+        </div>
+        <div class="card-tags"><span class="badge badge-mid">🔧 SOP</span><span class="badge badge-low">51haithatrashide / Niki</span></div>
+      </div>
+      <div class="insight-card card-blue">
+        <div class="card-icon">🔧</div>
+        <div class="card-title">ME-JOCC28 — Show-Up Anomaly</div>
+        <div class="card-body">
+          <strong>89% Show-Up Rate</strong> — highest in the system. This is almost too high and may indicate data integrity issues or shows being over-reported.
+          <br><br><strong>Action:</strong> Ibrahim SM and Niki SD should verify the data. If real, extract and share this team's confirmation follow-up process with all teams.
+        </div>
+        <div class="card-tags"><span class="badge badge-blue" style="background:rgba(96,165,250,.1);color:#60a5fa;border:1px solid rgba(96,165,250,.2);">📊 Verify Data</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 4. MANAGEMENT -->
+<section id="management" class="fade-in">
+  <div class="section-label">04 — Management Analysis</div>
+  <div class="section-title">TL / SM / SD Performance View</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="openTab('tab-sm',this)">SM Analysis</button>
+    <button class="tab-btn" onclick="openTab('tab-sd',this)">SD Analysis</button>
+  </div>
+
+  <div id="tab-sm" class="tab-content active">
+    <div class="manager-grid" id="smGrid"></div>
+  </div>
+  <div id="tab-sd" class="tab-content">
+    <div class="manager-grid" id="sdGrid"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 5. INSIGHTS -->
+<section id="insights" class="fade-in">
+  <div class="section-label">05 — Insight Cards</div>
+  <div class="section-title">Diagnostic Intelligence</div>
+
+  <div class="cards-grid">
+    <div class="insight-card card-purple">
+      <div class="card-icon">🎯</div>
+      <div class="card-title">The Closing Gap is System-Wide</div>
+      <div class="card-body">
+        The average Show→Pay rate is <strong>~34%</strong>. But top performers like JOCC02 (59%) and JOCC10 (67%) show what's possible. If the system average improved to just 40%, total paids would increase by ~<strong>160 conversions</strong>.
+        <br><br>This is the single highest-leverage intervention available. Closing training across all teams is the #1 priority.
+      </div>
+    </div>
+    <div class="insight-card card-green">
+      <div class="card-icon">📐</div>
+      <div class="card-title">Quality Beats Volume — Proven</div>
+      <div class="card-body">
+        JOCC36 (122 leads, 24% L→P) outperforms JOCC05 (412 leads, 10% L→P) in absolute paids per effort. JOCC05 has <strong>3.4x more leads</strong> but only <strong>1.6x more paids</strong>.
+        <br><br>Management should stop rewarding raw lead volume and start measuring <strong>leads→pay efficiency</strong>.
+      </div>
+    </div>
+    <div class="insight-card card-red">
+      <div class="card-icon">📉</div>
+      <div class="card-title">Omar SM Needs Urgent Intervention</div>
+      <div class="card-body">
+        Omar manages 5 teams: JOCC14, JOCC66, JOCC21, JOCC05, JOCC15. The combined L→P average is only <strong>~9%</strong>. JOCC05 and JOCC21 are the two largest-volume teams in the system — both severely underperforming.
+        <br><br>This is a systemic issue at the SM level, not individual TL failure.
+      </div>
+    </div>
+    <div class="insight-card card-green">
+      <div class="card-icon">⭐</div>
+      <div class="card-title">Bayan SM is a Model to Replicate</div>
+      <div class="card-body">
+        Bayan manages JOCC02 (20%), JOCC17 (16%), JOCC19 (15%), JOCC48 (15%). Consistent above-average performance across teams. This SM clearly has a strong coaching system.
+        <br><br>John SD should use Bayan's approach as the template for other SM coaching sessions.
+      </div>
+    </div>
+    <div class="insight-card card-amber">
+      <div class="card-icon">🔍</div>
+      <div class="card-title">Self-Managed Teams Are a Risk</div>
+      <div class="card-body">
+        Teams where TL = SM (JOCC-AlDarawsheh, JOCC-Ruba, Falasteen) have mixed results. JOCC-Ruba manages two teams (JOCC09: 15%, JOCC44: 12%) — acceptable. But Falasteen (JOCC51: 10%) and JOCC-AlDarawsheh (JOCC43: 12%, JOCC07: 12%) are below potential.
+        <br><br>Self-managed TLs need structured external check-ins with their SD.
+      </div>
+    </div>
+    <div class="insight-card card-blue">
+      <div class="card-icon">🏗</div>
+      <div class="card-title">Show-Up Rate Is Not the Problem</div>
+      <div class="card-body">
+        The average show-up rate is <strong>74.9%</strong> — this is strong. The system successfully moves leads to appointments. The failure happens <em>after</em> they show up.
+        <br><br>Management attention should shift 100% from "how do we get people to show up" to "why don't they pay when they do show up."
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 6. COMPARISON -->
+<section id="comparison" class="fade-in">
+  <div class="section-label">06 — Advanced Comparison</div>
+  <div class="section-title">Visual Performance Ranking</div>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="openTab('tab-ltp',this)">Leads→Pay Rank</button>
+    <button class="tab-btn" onclick="openTab('tab-s2p',this)">Show→Pay Rank</button>
+    <button class="tab-btn" onclick="openTab('tab-leads',this)">Lead Volume</button>
+    <button class="tab-btn" onclick="openTab('tab-app',this)">App Rate</button>
+  </div>
+
+  <div id="tab-ltp" class="tab-content active">
+    <div class="chart-area" id="chart-ltp"></div>
+  </div>
+  <div id="tab-s2p" class="tab-content">
+    <div class="chart-area" id="chart-s2p"></div>
+  </div>
+  <div id="tab-leads" class="tab-content">
+    <div class="chart-area" id="chart-leads"></div>
+  </div>
+  <div id="tab-app" class="tab-content">
+    <div class="chart-area" id="chart-app"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════ 7. CONCLUSION -->
+<section id="conclusion" class="fade-in">
+  <div class="section-label">07 — Final Strategic Conclusion</div>
+  <div class="section-title">The Real Picture</div>
+
+  <div class="conclusion-box">
+    <h3>Why Some Teams Convert and Others Don't</h3>
+    <p>
+      The data reveals a clear truth: <strong>the bottleneck is not lead generation, not even show-up rates — it is the closing conversation.</strong> Teams with high show-up rates (75–89%) but low Show→Pay (18–28%) are sending a consistent signal: people are interested, they show up, but they leave without paying. This means the pitch, offer clarity, objection handling, or urgency mechanics are broken.
+    </p>
+    <p>
+      Top converters like <strong>JOCC36 (55%), JOCC02 (59%), JOCC10 (67%)</strong> prove that the product and offer can close at exceptional rates. The variance between teams is not luck — it's execution quality in the final conversation. Every team below 30% Show→Pay needs their closing process rebuilt immediately.
+    </p>
+    <h3 style="margin-top:20px">Where the Real Bottleneck Is</h3>
+    <p>
+      <strong>Stage 3 (Show→Pay) is where the system breaks down.</strong> Moving from 34% to 45% system average would add ~290 additional paid conversions from the same lead pool. That's a potential <strong>34% revenue increase</strong> without acquiring a single additional lead.
+    </p>
+    <p>
+      Secondary bottleneck: <strong>App Rate under 40%</strong> in 5 teams (JOCC10, JOCC07, JOCC46, JOCC50, JOCC21). These teams are discarding leads before they even enter the funnel properly. SOP enforcement at the SM level is required.
+    </p>
+    <h3 style="margin-top:20px">What Each Category Must Fix — Immediately</h3>
+    <p>
+      <strong>Fake Volume Teams (JOCC05, JOCC21):</strong> Stop optimizing for lead count. Implement lead quality scoring. Omar SM must shift KPIs from leads to L→Pay%. Report on efficiency, not volume.
+    </p>
+    <p>
+      <strong>Closing Failures (JOCC23, JOCC39, JOCC34):</strong> Script audit within 7 days. Shadow closing calls with Serdah/abumahmmod SMs. JOCC36 and JOCC02 TLs should be used as internal closing coaches.
+    </p>
+    <p>
+      <strong>SOP Issues (JOCC10, JOCC07, JOCC46, JOCC50):</strong> Hamdan and 51haithatrashide SMs must enforce the application follow-up process with every lead — no exceptions.
+    </p>
+    <p>
+      <strong>Management Action:</strong> Omar SM is the #1 priority for SD intervention. Bayan SM's model should be documented and replicated. Niki SD should personally review all self-managed TL teams monthly.
+    </p>
+  </div>
+</section>
+
+<div style="height:60px"></div>
+
+</div><!-- /container -->
+
+<script>
+const teams = [
+  {team:"ME-JOCC14",tl:"51alkharabsheh",sm:"Omar",sd:"John",leads:271,app:133,appPct:49,show:88,showPct:66,paids:27,s2p:31,l2p:10},
+  {team:"ME-JOCC17",tl:"JOCC-Aljribie",sm:"Bayan",sd:"John",leads:160,app:98,appPct:61,show:78,showPct:80,paids:25,s2p:32,l2p:16},
+  {team:"ME-JOCC43",tl:"JOCC-AlDarawsheh",sm:"JOCC-AlDarawsheh",sd:"Niki",leads:95,app:50,appPct:53,show:31,showPct:62,paids:11,s2p:35,l2p:12},
+  {team:"ME-JOCC36",tl:"JOCC-QAdanAHMAD",sm:"Serdah",sd:"John",leads:122,app:71,appPct:58,show:53,showPct:75,paids:29,s2p:55,l2p:24},
+  {team:"ME-JOCC23",tl:"JOCC-forsan",sm:"Serdah",sd:"John",leads:163,app:70,appPct:43,show:52,showPct:74,paids:10,s2p:19,l2p:6},
+  {team:"ME-JOCC01",tl:"JOCC-AMousa",sm:"Hamdan",sd:"John",leads:247,app:117,appPct:47,show:91,showPct:78,paids:40,s2p:44,l2p:16},
+  {team:"ME-JOCC58",tl:"JOCC-alrawashmarwn",sm:"Bayan",sd:"John",leads:51,app:30,appPct:59,show:19,showPct:63,paids:5,s2p:26,l2p:10},
+  {team:"ME-JOCC39",tl:"JOCC-Qais",sm:"abumahmmod",sd:"Niki",leads:201,app:110,appPct:55,show:83,showPct:75,paids:20,s2p:24,l2p:10},
+  {team:"ME-JOCC06",tl:"JOCC-AbdullahAI",sm:"Hamdan",sd:"John",leads:189,app:101,appPct:53,show:77,showPct:76,paids:24,s2p:31,l2p:13},
+  {team:"ME-JOCC46",tl:"51qutaishat",sm:"51haithatrashide",sd:"Niki",leads:118,app:46,appPct:39,show:32,showPct:70,paids:9,s2p:28,l2p:8},
+  {team:"ME-JOCC34",tl:"51alfawares",sm:"Serdah",sd:"John",leads:166,app:101,appPct:61,show:66,showPct:65,paids:12,s2p:18,l2p:7},
+  {team:"ME-JOCC32",tl:"JOCC-Nihad",sm:"Ibrahim",sd:"Niki",leads:252,app:128,appPct:51,show:93,showPct:73,paids:29,s2p:31,l2p:12},
+  {team:"ME-JOCC11",tl:"JOCC-AMER",sm:"Serdah",sd:"John",leads:216,app:118,appPct:55,show:83,showPct:70,paids:29,s2p:35,l2p:13},
+  {team:"ME-JOCC66",tl:"51damra",sm:"Omar",sd:"John",leads:130,app:59,appPct:45,show:42,showPct:71,paids:10,s2p:24,l2p:8},
+  {team:"ME-JOCC16",tl:"Hamdan",sm:"Hamdan",sd:"John",leads:187,app:84,appPct:45,show:64,showPct:76,paids:25,s2p:39,l2p:13},
+  {team:"ME-JOCC25",tl:"JOCC-LINA",sm:"Serdah",sd:"John",leads:248,app:111,appPct:45,show:85,showPct:77,paids:29,s2p:34,l2p:12},
+  {team:"ME-JOCC44",tl:"JOCC-Ruba",sm:"JOCC-Ruba",sd:"Niki",leads:171,app:108,appPct:63,show:73,showPct:68,paids:21,s2p:29,l2p:12},
+  {team:"ME-JOCC40",tl:"51abualouf",sm:"abumahmmod",sd:"Niki",leads:143,app:73,appPct:51,show:49,showPct:67,paids:18,s2p:37,l2p:13},
+  {team:"ME-JOCC19",tl:"JOCC-saifhajjaj",sm:"Bayan",sd:"John",leads:121,app:79,appPct:65,show:52,showPct:66,paids:18,s2p:35,l2p:15},
+  {team:"ME-JOCC28",tl:"JOCC-Emadaldajah",sm:"Ibrahim",sd:"Niki",leads:164,app:72,appPct:44,show:64,showPct:89,paids:22,s2p:34,l2p:13},
+  {team:"ME-JOCC07",tl:"JOCC-AlDarawsheh",sm:"JOCC-AlDarawsheh",sd:"Niki",leads:174,app:64,appPct:37,show:48,showPct:75,paids:21,s2p:44,l2p:12},
+  {team:"ME-JOCC13",tl:"51dahbour",sm:"Serdah",sd:"John",leads:238,app:124,appPct:52,show:84,showPct:68,paids:30,s2p:36,l2p:13},
+  {team:"ME-JOCC49",tl:"51riyad",sm:"Mumen",sd:"Niki",leads:222,app:122,appPct:55,show:95,showPct:78,paids:32,s2p:34,l2p:14},
+  {team:"ME-JOCC51",tl:"Falasteen",sm:"Falasteen",sd:"Niki",leads:209,app:95,appPct:45,show:75,showPct:79,paids:21,s2p:28,l2p:10},
+  {team:"ME-JOCC21",tl:"JOCC-Altamimi",sm:"Omar",sd:"John",leads:328,app:129,appPct:39,show:85,showPct:66,paids:27,s2p:32,l2p:8},
+  {team:"ME-JOCC12",tl:"JOCC-Ala",sm:"Bayan",sd:"John",leads:171,app:76,appPct:44,show:57,showPct:75,paids:23,s2p:40,l2p:13},
+  {team:"ME-JOCC05",tl:"51saad",sm:"Omar",sd:"John",leads:412,app:194,appPct:47,show:135,showPct:70,paids:42,s2p:31,l2p:10},
+  {team:"ME-JOCC10",tl:"JOCC-Alhaijaa",sm:"Hamdan",sd:"John",leads:129,app:35,appPct:27,show:27,showPct:77,paids:18,s2p:67,l2p:14},
+  {team:"ME-JOCC59",tl:"JOCC-SudqiQasim",sm:"Bayan",sd:"John",leads:98,app:48,appPct:49,show:34,showPct:71,paids:8,s2p:24,l2p:8},
+  {team:"ME-JOCC04",tl:"JOCC-MAJALI",sm:"Serdah",sd:"John",leads:261,app:110,appPct:42,show:79,showPct:72,paids:33,s2p:42,l2p:13},
+  {team:"ME-JOCC08",tl:"51gogazeh",sm:"Hamdan",sd:"John",leads:281,app:152,appPct:54,show:118,showPct:78,paids:33,s2p:28,l2p:12},
+  {team:"ME-JOCC09",tl:"JOCC-Ruba",sm:"JOCC-Ruba",sd:"Niki",leads:171,app:78,appPct:46,show:61,showPct:78,paids:26,s2p:43,l2p:15},
+  {team:"ME-JOCC02",tl:"JOCC-Ajarmeh",sm:"Bayan",sd:"John",leads:255,app:111,appPct:44,show:88,showPct:79,paids:52,s2p:59,l2p:20},
+  {team:"ME-JOCC15",tl:"51alhiary",sm:"Omar",sd:"John",leads:233,app:115,appPct:49,show:79,showPct:69,paids:33,s2p:42,l2p:14},
+  {team:"ME-JOCC50",tl:"JOCC-Matrookk",sm:"51haithatrashide",sd:"Niki",leads:153,app:56,appPct:37,show:43,showPct:77,paids:13,s2p:30,l2p:8},
+  {team:"ME-JOCC03",tl:"51saeed",sm:"Bayan",sd:"John",leads:200,app:84,appPct:42,show:64,showPct:76,paids:21,s2p:33,l2p:11},
+  {team:"ME-JOCC37",tl:"JOCC-qusayabualhayjaa",sm:"Serdah",sd:"John",leads:67,app:30,appPct:45,show:22,showPct:73,paids:7,s2p:32,l2p:10},
+  {team:"ME-JOCC48",tl:"51alnasser",sm:"Bayan",sd:"John",leads:151,app:67,appPct:44,show:46,showPct:69,paids:22,s2p:48,l2p:15},
+  {team:"ME-JOCC33",tl:"51alali",sm:"Ibrahim",sd:"Niki",leads:149,app:73,appPct:49,show:56,showPct:77,paids:19,s2p:34,l2p:13},
+  {team:"ME-JOCC29",tl:"51tumaizeh",sm:"Mumen",sd:"Niki",leads:216,app:88,appPct:41,show:69,showPct:78,paids:20,s2p:29,l2p:9},
+  {team:"ME-JOCC31",tl:"JOCC-Dareen",sm:"Mumen",sd:"Niki",leads:124,app:71,appPct:57,show:53,showPct:75,paids:21,s2p:40,l2p:17}
+];
+
+function getFlag(t) {
+  if (t.l2p >= 15) return 'top';
+  if ((t.leads > 250 && t.l2p <= 10)) return 'fake';
+  if (t.s2p <= 22) return 'close';
+  return '';
+}
+
+function getBadge(t) {
+  const l2p = t.l2p;
+  if (l2p >= 20) return '<span class="badge badge-star">★ Elite</span>';
+  if (l2p >= 15) return '<span class="badge badge-top">★ Top</span>';
+  if (l2p <= 8)  return '<span class="badge badge-low">⚠ Low</span>';
+  if (t.leads > 250 && l2p <= 10) return '<span class="badge badge-fake">⚠ Vol</span>';
+  if (t.s2p <= 22) return '<span class="badge badge-low">⚡ Close</span>';
+  return '<span class="badge badge-mid">Mid</span>';
+}
+
+function colorBar(val, max, type) {
+  let color;
+  if (type === 'l2p') {
+    color = val >= 15 ? '#22d3a5' : val >= 11 ? '#fbbf24' : '#f87171';
+  } else if (type === 's2p') {
+    color = val >= 40 ? '#22d3a5' : val >= 30 ? '#fbbf24' : '#f87171';
+  } else {
+    color = '#7c6af0';
+  }
+  const pct = Math.min(100, (val/max)*100);
+  return `<div class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div><span class="bar-val" style="color:${color}">${val}%</span></div>`;
+}
+
+let currentData = [...teams];
+let sortCol = 11; let sortDir = -1;
+let activeFlag = 'all';
+
+function renderTable(data) {
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map(t => {
+    const flag = getFlag(t);
+    const isHighlight = t.l2p >= 15;
+    return `<tr class="${isHighlight?'highlight-row':''}">
+      <td class="team-name">${t.team}</td>
+      <td class="mono" style="color:var(--muted);font-size:11px">${t.tl}</td>
+      <td>${t.sm}</td>
+      <td><span class="badge" style="background:rgba(34,211,238,.08);color:#22d3ee;border:1px solid rgba(34,211,238,.15);font-size:10px">${t.sd}</span></td>
+      <td style="color:var(--text);font-weight:500">${t.leads}</td>
+      <td>${t.app}</td>
+      <td>${colorBar(t.appPct,100,'app')}</td>
+      <td>${t.show}</td>
+      <td>${colorBar(t.showPct,100,'show')}</td>
+      <td style="font-weight:600;color:var(--text)">${t.paids}</td>
+      <td>${colorBar(t.s2p,70,'s2p')}</td>
+      <td>${colorBar(t.l2p,25,'l2p')}</td>
+      <td>${getBadge(t)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function applyFilters() {
+  const sd = document.getElementById('filterSD').value;
+  const sm = document.getElementById('filterSM').value;
+  const minConv = parseInt(document.getElementById('filterMinConv').value)||0;
+  currentData = teams.filter(t => {
+    if (sd && t.sd !== sd) return false;
+    if (sm && t.sm !== sm) return false;
+    if (t.l2p < minConv) return false;
+    if (activeFlag === 'top' && t.l2p < 15) return false;
+    if (activeFlag === 'fake' && !(t.leads > 250 && t.l2p <= 10)) return false;
+    if (activeFlag === 'close' && t.s2p > 22) return false;
+    return true;
+  });
+  sortData();
+}
+
+function filterFlag(flag) {
+  activeFlag = flag;
+  document.querySelectorAll('.toolbar .btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  applyFilters();
+}
+
+function resetFilters() {
+  document.getElementById('filterSD').value='';
+  document.getElementById('filterSM').value='';
+  document.getElementById('filterMinConv').value=0;
+  activeFlag='all';
+  document.querySelectorAll('.toolbar .btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.toolbar .btn').classList.add('active');
+  currentData=[...teams];
+  sortData();
+}
+
+function sortTable(col) {
+  const headers = document.querySelectorAll('#mainTable thead th');
+  headers.forEach((h,i) => {
+    h.classList.remove('sort-asc','sort-desc');
+  });
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = -1; }
+  headers[col].classList.add(sortDir === -1 ? 'sort-desc' : 'sort-asc');
+  sortData();
+}
+
+function sortData() {
+  const keys = ['team','tl','sm','sd','leads','app','appPct','show','showPct','paids','s2p','l2p'];
+  currentData.sort((a,b) => {
+    const k = keys[sortCol];
+    const va = a[k]; const vb = b[k];
+    if (typeof va === 'string') return va.localeCompare(vb)*sortDir;
+    return (va-vb)*sortDir;
+  });
+  renderTable(currentData);
+}
+
+// SM stats
+function buildSMCards() {
+  const smMap = {};
+  teams.forEach(t => {
+    if (!smMap[t.sm]) smMap[t.sm] = {teams:[],leads:0,paids:0,s2pSum:0,l2pSum:0,count:0};
+    smMap[t.sm].teams.push(t.team);
+    smMap[t.sm].leads += t.leads;
+    smMap[t.sm].paids += t.paids;
+    smMap[t.sm].s2pSum += t.s2p;
+    smMap[t.sm].l2pSum += t.l2p;
+    smMap[t.sm].count++;
+  });
+
+  const actions = {
+    'Omar': ['Audit JOCC05 & JOCC21 lead quality immediately','Shift KPI to L→Pay%, not lead count','Attend JOCC36/JOCC02 closing sessions'],
+    'Bayan': ['Document JOCC02 closing script as system standard','Scale JOCC19 lead volume — quality is there','Share best practices with John SD other SMs'],
+    'Serdah': ['Emergency fix for JOCC23 (6% L→P)','Deploy JOCC36 TL as closing coach','Enforce uniform closing script across all teams'],
+    'Hamdan': ['Fix JOCC10 application SOP (27% app rate)','Focus JOCC08 on closing quality not volume','Review JOCC16 show-up confirmation process'],
+    'Ibrahim': ['Verify JOCC28 89% show-up data accuracy','Strengthen JOCC32 closing mechanics','Consistent mid-tier — push one team to top'],
+    'Mumen': ['Scale JOCC31 (17%) — it has the quality','Urgent closing fix for JOCC29 (9%)','JOCC49 is at 14% — push to 17%+ with script'],
+    'abumahmmod': ['JOCC39 closing is broken — immediate coaching','JOCC40 is solid — use as benchmark','Standardize closing process across both teams'],
+    '51haithatrashide': ['Both teams have <40% app rate — SOP enforcement','Direct Niki SD oversight required','Fix application follow-up protocol system-wide'],
+    'JOCC-AlDarawsheh': ['External SM check-in monthly with Niki SD','JOCC07 has 44% Show→Pay but only 37% app — fix app SOP'],
+    'JOCC-Ruba': ['JOCC09 (15%) is good — push to 18%','External monthly review with Niki SD'],
+    'Falasteen': ['79% show-up, 28% close — pitch needs audit','Request Niki SD closing session','Study JOCC02 closing technique']
+  };
+
+  const grid = document.getElementById('smGrid');
+  Object.entries(smMap).sort((a,b)=> (b[1].l2pSum/b[1].count)-(a[1].l2pSum/a[1].count)).forEach(([sm, d]) => {
+    const avgL2P = (d.l2pSum/d.count).toFixed(1);
+    const avgS2P = (d.s2pSum/d.count).toFixed(1);
+    const conv = parseFloat(avgL2P);
+    const color = conv >= 14 ? '#22d3a5' : conv >= 11 ? '#fbbf24' : '#f87171';
+    const acts = (actions[sm]||['Review team performance','Set individual targets']).map(a=>`<li>${a}</li>`).join('');
+    grid.innerHTML += `<div class="manager-card">
+      <div class="manager-name">${sm}</div>
+      <div class="manager-role">Sales Manager</div>
+      <div class="manager-stat"><span>Teams</span><span>${d.count}</span></div>
+      <div class="manager-stat"><span>Total Leads</span><span>${d.leads}</span></div>
+      <div class="manager-stat"><span>Total Paids</span><span>${d.paids}</span></div>
+      <div class="manager-stat"><span>Avg L→Pay</span><span style="color:${color};font-weight:600">${avgL2P}%</span></div>
+      <div class="manager-stat"><span>Avg Show→Pay</span><span>${avgS2P}%</span></div>
+      <div class="manager-divider"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em">Actions</div>
+      <ul class="action-list">${acts}</ul>
+    </div>`;
+  });
+}
+
+function buildSDCards() {
+  const sdMap = {};
+  teams.forEach(t => {
+    if (!sdMap[t.sd]) sdMap[t.sd] = {leads:0,paids:0,count:0,l2pSum:0,s2pSum:0};
+    sdMap[t.sd].leads += t.leads;
+    sdMap[t.sd].paids += t.paids;
+    sdMap[t.sd].count++;
+    sdMap[t.sd].l2pSum += t.l2p;
+    sdMap[t.sd].s2pSum += t.s2p;
+  });
+  const sdActions = {
+    'John': [
+      'Investigate Omar SM — largest teams with worst conversion',
+      'Replicate Bayan SM approach across all John SD SMs',
+      'Mandate closing training for JOCC23, JOCC34 immediately',
+      'JOCC05 & JOCC21: implement lead quality scoring',
+      'Standard closing script to be used by all 26 teams'
+    ],
+    'Niki': [
+      'Directly review all 3 self-managed TL teams monthly',
+      'Audit 51haithatrashide SM — both teams have app SOP failures',
+      'JOCC28 show-up data needs verification (89% anomaly)',
+      'Push Ibrahim SM to improve closing training for JOCC32',
+      'JOCC29 & JOCC51 need closing script overhaul'
+    ]
+  };
+  const grid = document.getElementById('sdGrid');
+  Object.entries(sdMap).forEach(([sd,d])=>{
+    const avgL2P = (d.l2pSum/d.count).toFixed(1);
+    const avgS2P = (d.s2pSum/d.count).toFixed(1);
+    const acts = (sdActions[sd]||[]).map(a=>`<li>${a}</li>`).join('');
+    grid.innerHTML += `<div class="manager-card">
+      <div class="manager-name">${sd}</div>
+      <div class="manager-role">Senior Director · ${d.count} Teams</div>
+      <div class="manager-stat"><span>Total Leads</span><span>${d.leads.toLocaleString()}</span></div>
+      <div class="manager-stat"><span>Total Paids</span><span>${d.paids}</span></div>
+      <div class="manager-stat"><span>Avg L→Pay</span><span style="color:var(--accent2);font-weight:600">${avgL2P}%</span></div>
+      <div class="manager-stat"><span>Avg Show→Pay</span><span>${avgS2P}%</span></div>
+      <div class="manager-stat"><span>Conversion Ratio</span><span>${(d.paids/d.leads*100).toFixed(1)}%</span></div>
+      <div class="manager-divider"></div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.1em">Priority Actions</div>
+      <ul class="action-list">${acts}</ul>
+    </div>`;
+  });
+}
+
+// Charts
+function buildChart(containerId, field, label, max, type) {
+  const container = document.getElementById(containerId);
+  const sorted = [...teams].sort((a,b)=>b[field]-a[field]);
+  container.innerHTML = sorted.map(t => {
+    const val = t[field];
+    const pct = (val/max)*100;
+    const color = type==='l2p' ? (val>=15?'#22d3a5':val>=11?'#fbbf24':'#f87171')
+                : type==='s2p' ? (val>=40?'#22d3a5':val>=30?'#fbbf24':'#f87171')
+                : '#7c6af0';
+    return `<div class="chart-row">
+      <div class="chart-row-label" title="${t.team} (${t.tl})">${t.team.replace('ME-','')}</div>
+      <div class="chart-bar-wrap"><div class="chart-bar" style="width:${pct}%;background:${color}22;border-left:3px solid ${color}">
+        <span style="color:${color}">${val}${type==='leads'?'':('%')}</span>
+      </div></div>
+      <div class="chart-num">${t.sm}</div>
+    </div>`;
+  }).join('');
+}
+
+function openTab(id, btn) {
+  const parent = btn.closest('section') || document.body;
+  const bar = btn.closest('.tab-bar');
+  bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const contents = bar.nextElementSibling;
+  // find all siblings that are tab-content
+  let el = bar.nextElementSibling;
+  while(el && el.classList.contains('tab-content')) {
+    el.classList.remove('active');
+    el = el.nextElementSibling;
+  }
+  document.getElementById(id).classList.add('active');
+}
+
+// Nav active on scroll
+window.addEventListener('scroll', () => {
+  const sections = document.querySelectorAll('section[id]');
+  let active = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 80) active = s.id;
+  });
+  document.querySelectorAll('nav a').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href')==='#'+active);
+  });
+});
+
+// Fade in observer
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+},{threshold:0.05});
+document.querySelectorAll('.fade-in').forEach(el=>observer.observe(el));
+
+// Init
+renderTable(teams);
+buildSMCards();
+buildSDCards();
+buildChart('chart-ltp','l2p','L→Pay%',25,'l2p');
+buildChart('chart-s2p','s2p','Show→Pay%',70,'s2p');
+buildChart('chart-leads','leads','Leads',420,'leads');
+buildChart('chart-app','appPct','App%',70,'app');
+
+// Default sort by l2p desc
+sortCol=11; sortDir=-1;
+document.querySelectorAll('#mainTable thead th')[11].classList.add('sort-desc');
+currentData=[...teams];
+sortData();
+</script>
+</body>
+</html>
